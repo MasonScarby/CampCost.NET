@@ -19,4 +19,6 @@ public class Trip
 
     // Navigation
     public ICollection<Expense> Expenses { get; set; } = new List<Expense>();
+    public ICollection<BudgetCategory> BudgetCategories { get; set; } = new List<BudgetCategory>();
+    public ICollection<TripStop> TripStops { get; set; } = new List<TripStop>();
 }

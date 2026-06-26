@@ -31,6 +31,7 @@ public static class InfrastructureServiceExtensions
         // Core stateless services
         services.AddSingleton<TransactionCategorizationService>();
         services.AddSingleton<TransactionMatchingService>();
+        services.AddSingleton<BudgetCalculationService>();
 
         // Scoped services (one per HTTP request)
         services.AddScoped<IPlaidService, PlaidService>();
