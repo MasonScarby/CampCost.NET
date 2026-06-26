@@ -1,0 +1,22 @@
+namespace CampCost.Core.Interfaces;
+
+/// <summary>
+/// Orchestrates a full transaction sync for one or all users.
+/// Called from the controller for manual syncs and from the webhook handler for automated ones.
+/// </summary>
+public interface ITransactionSyncService
+{
+    /// <summary>Sync all Plaid connections for a specific user.</summary>
+    Task<SyncResult> SyncForUserAsync(string userId);
+
+    /// <summary>Sync all Plaid connections across all users (used by webhook).</summary>
+    Task<SyncResult> SyncAllAsync();
+}
+
+/// <summary>Summary of what happened during a sync run.</summary>
+public record SyncResult(
+    int ConnectionsProcessed,
+    int TransactionsFetched,
+    int ExpensesUpserted,
+    int ExpensesSkipped
+);

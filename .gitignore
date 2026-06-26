@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+out/
+
+# Secrets — never commit these
+appsettings.Development.json
+**/secrets.json
+.env
+
+# Rider / VS / VS Code
+.idea/
+.vscode/
+*.user
+*.suo
+
+# macOS
+.DS_Store
+
+# NuGet
+*.nupkg
+packages/
