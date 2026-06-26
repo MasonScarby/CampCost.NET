@@ -1,60 +1,57 @@
 using CampCost.Core.Entities;
-using CampCost.Core.Interfaces;
 
 namespace CampCost.Core.Services;
 
 /// <summary>
-/// Given a transaction date and a list of trips, finds the best-matching trip.
+/// Matches a transaction date to a trip. Ported exactly from the original JS logic:
 ///
-/// MATCHING RULES (ported from JS syncTransactions()):
-///   1. Exact window  — transaction date falls within [trip.StartDate, trip.EndDate]
-///   2. Buffer window — transaction date falls within [start - BUFFER_DAYS, end + BUFFER_DAYS]
-///      This catches charges that post a day or two before/after the campsite dates
-///      (gas fill-up on the drive home, site fee that posts late, etc.)
-///   3. No match      — returns null; the expense is stored without a trip assignment
+///   1. Date window match — tx date within [start - BUFFER_DAYS, min(end + BUFFER_DAYS, today)]
+///   2. Fallback to a trip with no start_date set (catch-all trip)
+///   3. Fallback to trips[0] (first trip in the list)
+///   4. null if no trips at all
 ///
-/// When multiple trips match, we prefer the one whose midpoint is closest to the transaction date.
+/// The today cap prevents future-dated buffer windows from matching past transactions.
 /// </summary>
 public class TransactionMatchingService
 {
     private const int BufferDays = 2;
 
-    /// <summary>
-    /// Returns the best matching trip for the given transaction date, or null if none match.
-    /// </summary>
-    public Trip? FindMatchingTrip(DateTime transactionDate, IEnumerable<Trip> trips)
+    public Trip? FindMatchingTrip(DateOnly transactionDate, IEnumerable<Trip> trips)
     {
         var tripList = trips.ToList();
         if (tripList.Count == 0) return null;
 
-        // 1. Look for exact window match first
-        var exactMatches = tripList
-            .Where(t => transactionDate >= t.StartDate.Date && transactionDate <= t.EndDate.Date)
-            .ToList();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        if (exactMatches.Count == 1) return exactMatches[0];
-        if (exactMatches.Count > 1)  return ClosestByMidpoint(transactionDate, exactMatches);
-
-        // 2. Fall back to buffered window
-        var bufferedMatches = tripList
-            .Where(t =>
-                transactionDate >= t.StartDate.Date.AddDays(-BufferDays) &&
-                transactionDate <= t.EndDate.Date.AddDays(BufferDays))
-            .ToList();
-
-        if (bufferedMatches.Count == 0) return null;
-        if (bufferedMatches.Count == 1) return bufferedMatches[0];
-
-        return ClosestByMidpoint(transactionDate, bufferedMatches);
-    }
-
-    private static Trip ClosestByMidpoint(DateTime date, List<Trip> candidates)
-    {
-        return candidates.OrderBy(t =>
+        // 1. Find first trip whose date window (+ buffer) contains the transaction
+        var match = tripList.FirstOrDefault(t =>
         {
-            var midpoint = t.StartDate.Date + TimeSpan.FromDays(
-                (t.EndDate.Date - t.StartDate.Date).TotalDays / 2);
-            return Math.Abs((date - midpoint).TotalDays);
-        }).First();
+            if (t.StartDate is null) return false;
+
+            var windowStart = t.StartDate.Value.AddDays(-BufferDays);
+
+            // If end_date set, buffer it and cap at today; otherwise use today as end
+            DateOnly windowEnd;
+            if (t.EndDate.HasValue)
+            {
+                var buffered = t.EndDate.Value.AddDays(BufferDays);
+                windowEnd = buffered < today ? buffered : today;
+            }
+            else
+            {
+                windowEnd = today;
+            }
+
+            return transactionDate >= windowStart && transactionDate <= windowEnd;
+        });
+
+        if (match is not null) return match;
+
+        // 2. Fall back to a trip with no start_date (user hasn't set dates yet)
+        var noDateTrip = tripList.FirstOrDefault(t => t.StartDate is null);
+        if (noDateTrip is not null) return noDateTrip;
+
+        // 3. Last resort — first trip in the list
+        return tripList[0];
     }
 }

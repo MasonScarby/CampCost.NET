@@ -8,7 +8,7 @@ public class TransactionMatchingServiceTests
 {
     private readonly TransactionMatchingService _sut = new();
 
-    private static Trip MakeTrip(string name, DateTime start, DateTime end) => new()
+    private static Trip MakeTrip(string name, DateOnly? start, DateOnly? end) => new()
     {
         Id = Guid.NewGuid(),
         Name = name,
@@ -20,61 +20,103 @@ public class TransactionMatchingServiceTests
     [Fact]
     public void ExactDateMatch_ReturnsTrip()
     {
-        var trip = MakeTrip("Summer Camp", new DateTime(2024, 7, 1), new DateTime(2024, 7, 7));
-        var result = _sut.FindMatchingTrip(new DateTime(2024, 7, 4), new[] { trip });
-        result.Should().Be(trip);
+        var trip = MakeTrip("Summer Camp", new DateOnly(2024, 7, 1), new DateOnly(2024, 7, 7));
+        _sut.FindMatchingTrip(new DateOnly(2024, 7, 4), new[] { trip })
+            .Should().Be(trip);
     }
 
     [Fact]
     public void TransactionOnStartDate_ReturnsTrip()
     {
-        var trip = MakeTrip("Trip", new DateTime(2024, 6, 10), new DateTime(2024, 6, 15));
-        _sut.FindMatchingTrip(new DateTime(2024, 6, 10), new[] { trip }).Should().Be(trip);
+        var trip = MakeTrip("Trip", new DateOnly(2024, 6, 10), new DateOnly(2024, 6, 15));
+        _sut.FindMatchingTrip(new DateOnly(2024, 6, 10), new[] { trip })
+            .Should().Be(trip);
     }
 
     [Fact]
     public void TransactionOnEndDate_ReturnsTrip()
     {
-        var trip = MakeTrip("Trip", new DateTime(2024, 6, 10), new DateTime(2024, 6, 15));
-        _sut.FindMatchingTrip(new DateTime(2024, 6, 15), new[] { trip }).Should().Be(trip);
+        var trip = MakeTrip("Trip", new DateOnly(2024, 6, 10), new DateOnly(2024, 6, 15));
+        _sut.FindMatchingTrip(new DateOnly(2024, 6, 15), new[] { trip })
+            .Should().Be(trip);
     }
 
     [Fact]
-    public void TransactionWithinBuffer_ReturnsTrip()
+    public void TransactionWithinBufferBeforeStart_ReturnsTrip()
     {
-        // 2 days before start — within the BUFFER_DAYS=2 window
-        var trip = MakeTrip("Trip", new DateTime(2024, 8, 5), new DateTime(2024, 8, 10));
-        _sut.FindMatchingTrip(new DateTime(2024, 8, 3), new[] { trip }).Should().Be(trip);
+        // 2 days before start — exactly on the BUFFER_DAYS=2 boundary (inclusive)
+        var trip = MakeTrip("Trip", new DateOnly(2024, 8, 5), new DateOnly(2024, 8, 10));
+        _sut.FindMatchingTrip(new DateOnly(2024, 8, 3), new[] { trip })
+            .Should().Be(trip);
     }
 
     [Fact]
-    public void TransactionAfterBufferEnd_ReturnsNull()
+    public void TransactionWithinBufferAfterEnd_ReturnsTrip()
     {
-        // 3 days after end — outside BUFFER_DAYS=2
-        var trip = MakeTrip("Trip", new DateTime(2024, 8, 5), new DateTime(2024, 8, 10));
-        _sut.FindMatchingTrip(new DateTime(2024, 8, 13), new[] { trip }).Should().BeNull();
+        // 2 days after end — exactly on the BUFFER_DAYS=2 boundary (inclusive)
+        var trip = MakeTrip("Trip", new DateOnly(2024, 8, 5), new DateOnly(2024, 8, 10));
+        _sut.FindMatchingTrip(new DateOnly(2024, 8, 12), new[] { trip })
+            .Should().Be(trip);
+    }
+
+    [Fact]
+    public void TransactionOutsideBuffer_FallsBackToFirstTrip()
+    {
+        // 3 days after end — outside BUFFER_DAYS=2; no null-start trip, so trips[0] is returned
+        var trip = MakeTrip("Trip", new DateOnly(2024, 8, 5), new DateOnly(2024, 8, 10));
+        _sut.FindMatchingTrip(new DateOnly(2024, 8, 13), new[] { trip })
+            .Should().Be(trip);
     }
 
     [Fact]
     public void NoTrips_ReturnsNull()
     {
-        _sut.FindMatchingTrip(DateTime.Now, Array.Empty<Trip>()).Should().BeNull();
+        _sut.FindMatchingTrip(DateOnly.FromDateTime(DateTime.UtcNow), Array.Empty<Trip>())
+            .Should().BeNull();
     }
 
     [Fact]
-    public void MultipleMatches_ReturnsTripWithClosestMidpoint()
+    public void MultipleTripsMatch_ReturnsFirst()
     {
-        var close = MakeTrip("Close Trip", new DateTime(2024, 9, 1), new DateTime(2024, 9, 5));
-        var far   = MakeTrip("Far Trip",   new DateTime(2024, 9, 1), new DateTime(2024, 9, 30));
-        // Transaction on Sept 2 — "Close Trip" midpoint is Sept 3, "Far Trip" midpoint is Sept 15
-        var result = _sut.FindMatchingTrip(new DateTime(2024, 9, 2), new[] { close, far });
-        result.Should().Be(close);
+        // Both trips cover the tx date; FirstOrDefault returns the first one
+        var first = MakeTrip("First Trip", new DateOnly(2024, 9, 1), new DateOnly(2024, 9, 30));
+        var second = MakeTrip("Second Trip", new DateOnly(2024, 9, 1), new DateOnly(2024, 9, 5));
+        _sut.FindMatchingTrip(new DateOnly(2024, 9, 2), new[] { first, second })
+            .Should().Be(first);
     }
 
     [Fact]
-    public void TransactionFarFromAllTrips_ReturnsNull()
+    public void FallbackToNullStartDateTrip_WhenNoDatesMatch()
     {
-        var trip = MakeTrip("Trip", new DateTime(2024, 1, 1), new DateTime(2024, 1, 5));
-        _sut.FindMatchingTrip(new DateTime(2024, 6, 1), new[] { trip }).Should().BeNull();
+        // tx date doesn't match any dated trip; should fall back to the no-dates (catch-all) trip
+        var datedTrip = MakeTrip("Dated Trip", new DateOnly(2024, 1, 1), new DateOnly(2024, 1, 5));
+        var catchAll  = MakeTrip("Catch-All", null, null);
+
+        _sut.FindMatchingTrip(new DateOnly(2024, 6, 1), new[] { datedTrip, catchAll })
+            .Should().Be(catchAll);
+    }
+
+    [Fact]
+    public void FallbackToFirstTrip_WhenNoDatesMatchAndNoNullStartTrip()
+    {
+        // tx date doesn't match; no null-start trip; falls back to trips[0]
+        var first  = MakeTrip("First",  new DateOnly(2024, 1, 1), new DateOnly(2024, 1, 5));
+        var second = MakeTrip("Second", new DateOnly(2024, 3, 1), new DateOnly(2024, 3, 5));
+
+        _sut.FindMatchingTrip(new DateOnly(2024, 6, 1), new[] { first, second })
+            .Should().Be(first);
+    }
+
+    [Fact]
+    public void TripWithNoStartDate_NeverMatchesDateWindow()
+    {
+        // A catch-all trip (null StartDate) should NOT match via the date-window path
+        // It should only be returned as the fallback (step 2)
+        var catchAll = MakeTrip("No-Date Trip", null, null);
+        var datedTrip = MakeTrip("Dated", new DateOnly(2024, 7, 1), new DateOnly(2024, 7, 5));
+
+        // tx date matches the dated trip → dated trip wins over the catch-all
+        _sut.FindMatchingTrip(new DateOnly(2024, 7, 3), new[] { catchAll, datedTrip })
+            .Should().Be(datedTrip);
     }
 }

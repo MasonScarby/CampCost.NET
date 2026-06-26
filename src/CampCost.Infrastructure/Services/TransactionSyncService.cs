@@ -45,37 +45,51 @@ public class TransactionSyncService : ITransactionSyncService
 
         foreach (var connection in connections)
         {
-            var end = DateTime.UtcNow;
-            var start = connection.LastSyncAt?.AddDays(-2) ?? end.AddDays(-90);
+            var endDate = DateOnly.FromDateTime(DateTime.UtcNow);
+            var startDate = connection.LastSyncAt.HasValue
+                ? DateOnly.FromDateTime(connection.LastSyncAt.Value.AddDays(-2))
+                : endDate.AddDays(-90);
 
-            var transactions = await _plaid.GetTransactionsAsync(connection.AccessToken, start, end);
+            var transactions = await _plaid.GetTransactionsAsync(
+                connection.AccessToken, startDate, endDate);
             fetched += transactions.Count;
 
+            // Only match against planning/active trips — same as original JS filter
             var trips = await _db.Trips
-                .Where(t => t.UserId == connection.UserId)
+                .Where(t => t.UserId == connection.UserId &&
+                            (t.Status == "planning" || t.Status == "active"))
                 .ToListAsync();
 
             var existingIds = (await _db.Expenses
-                .Where(e => e.UserId == connection.UserId)
+                .Where(e => e.UserId == connection.UserId && e.PlaidTransactionId != null)
                 .Select(e => e.PlaidTransactionId)
                 .ToListAsync()).ToHashSet();
 
             foreach (var tx in transactions)
             {
-                if (existingIds.Contains(tx.PlaidTransactionId)) { skipped++; continue; }
+                // Skip credits (money in) — Plaid: negative amount = credit
+                if (tx.Amount < 0) { skipped++; continue; }
+
+                // Deduplicate by plaid_transaction_id
+                if (existingIds.Contains(tx.TransactionId)) { skipped++; continue; }
 
                 var matchedTrip = _matcher.FindMatchingTrip(tx.Date, trips);
+
+                // No trip to assign to — skip (original JS: if (!tripMatch) continue)
+                if (matchedTrip is null) { skipped++; continue; }
 
                 _db.Expenses.Add(new Expense
                 {
                     Id = Guid.NewGuid(),
                     UserId = connection.UserId,
-                    TripId = matchedTrip?.Id,
-                    PlaidTransactionId = tx.PlaidTransactionId,
+                    TripId = matchedTrip.Id,
+                    PlaidTransactionId = tx.TransactionId,
                     MerchantName = tx.MerchantName,
                     Amount = tx.Amount,
-                    Category = _categorizer.Categorize(tx.MerchantName),
-                    TransactionDate = tx.Date,
+                    Category = _categorizer.Categorize(tx.Name, tx.MerchantName),
+                    ExpenseDate = tx.Date,
+                    Source = "plaid",
+                    Reviewed = false,
                     CreatedAt = DateTime.UtcNow
                 });
                 upserted++;

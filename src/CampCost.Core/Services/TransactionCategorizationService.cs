@@ -3,47 +3,38 @@ using System.Text.RegularExpressions;
 namespace CampCost.Core.Services;
 
 /// <summary>
-/// Converts a merchant name string into a human-readable expense category.
-/// Pure function — no I/O, no dependencies. Directly ports the JS categorize() regex logic.
-///
-/// HOW IT WORKS:
-/// Each rule is a (regex pattern, category label) pair. We test them in order and return
-/// the first match. If nothing matches we return "Other". The regex uses case-insensitive
-/// matching (RegexOptions.IgnoreCase).
+/// Maps merchant names to the expense_category enum values used by the Supabase DB.
+/// Category strings MUST exactly match the DB enum: fuel, campground, food_groceries,
+/// gear, repairs, propane_utilities, activities, misc.
+/// Ported directly from the original JS categorize() function.
 /// </summary>
 public class TransactionCategorizationService
 {
     private static readonly (Regex Pattern, string Category)[] Rules =
     {
-        (new Regex(@"camp(ground|site|ing)|rv\s?park|koa|hipcamp|the dyrt", RegexOptions.IgnoreCase), "Campsite"),
-        (new Regex(@"walmart|target|costco|sam['\s]?s club|grocery|safeway|kroger|whole foods|trader joe|aldi|publix|sprouts|market|food lion|meijer|heb", RegexOptions.IgnoreCase), "Groceries"),
-        (new Regex(@"shell|chevron|exxon|bp|mobil|arco|circle k|wawa|pilot|love['\s]?s|casey|speedway|valero|marathon|sunoco|fuel|gas station|kwik trip", RegexOptions.IgnoreCase), "Gas"),
-        (new Regex(@"mcdonald|burger king|wendy['\s]?s|taco bell|chick.fil|subway|chipotle|domino|pizza|kfc|dunkin|starbucks|restaurant|diner|grill|cafe|bar |tavern|brewery|eatery|kitchen|bistro|sushi|steakhouse|ihop|waffle house|cracker barrel|olive garden|applebee|chili['\s]?s", RegexOptions.IgnoreCase), "Dining"),
-        (new Regex(@"rei|bass pro|cabela['\s]?s|dick['\s]?s sporting|academy sports|patagonia|columbia|north face|osprey|kelty|marmot|yeti|outdoor|camp chef|jetboil", RegexOptions.IgnoreCase), "Gear"),
-        (new Regex(@"amazon|ebay|etsy|shopify|bestbuy|best buy|apple|home depot|lowe['\s]?s|menard", RegexOptions.IgnoreCase), "Shopping"),
-        (new Regex(@"netflix|spotify|hulu|disney|hbo|youtube|apple tv|xbox|playstation|steam|gaming|twitch", RegexOptions.IgnoreCase), "Entertainment"),
-        (new Regex(@"hotel|motel|airbnb|vrbo|hilton|marriott|hyatt|holiday inn|best western|days inn|super 8|comfort inn|embassy suites", RegexOptions.IgnoreCase), "Lodging"),
-        (new Regex(@"uber|lyft|taxi|transit|mta|bart|metro|amtrak|greyhound|spirit|frontier|southwest|delta|united|american airlines|jetblue|alaska air|airport|parking", RegexOptions.IgnoreCase), "Travel"),
-        (new Regex(@"cvs|walgreen|rite aid|pharmacy|urgent care|hospital|clinic|doctor|dentist|optometrist|health|medical|insurance", RegexOptions.IgnoreCase), "Health"),
-        (new Regex(@"at&t|verizon|t.mobile|sprint|comcast|xfinity|spectrum|internet|phone|wireless", RegexOptions.IgnoreCase), "Utilities"),
-        (new Regex(@"atm|withdrawal|transfer|zelle|venmo|paypal|cashapp|cash app", RegexOptions.IgnoreCase), "Transfer"),
+        (new Regex(@"shell|bp |chevron|exxon|mobil|pilot|love['\s]?s|loves|flying j|speedway|sunoco|circle k|casey|kwik trip|fuel|gasoline|gas station", RegexOptions.IgnoreCase), "fuel"),
+        (new Regex(@"koa|hipcamp|reserveamerica|campground|rv\s?park|rv resort|state park|campsite|boondock|harvest host", RegexOptions.IgnoreCase), "campground"),
+        (new Regex(@"walmart|kroger|safeway|aldi|publix|heb|meijer|whole foods|trader joe|grocery|supermarket|food lion|sprouts", RegexOptions.IgnoreCase), "food_groceries"),
+        (new Regex(@"rei|cabela['\s]?s|bass pro|academy sports|backcountry|moosejaw|gear", RegexOptions.IgnoreCase), "gear"),
+        (new Regex(@"autozone|o['\s]?reilly|napa auto|advance auto|mechanic|muffler|tire|jiffy lube|repair|firestone|pep boys", RegexOptions.IgnoreCase), "repairs"),
+        (new Regex(@"propane|amerigas|ferrellgas|blue rhino|utilities|dump station", RegexOptions.IgnoreCase), "propane_utilities"),
+        (new Regex(@"national park|state park|entrance fee|permit|recreation", RegexOptions.IgnoreCase), "activities"),
     };
 
     /// <summary>
-    /// Returns the category for a given merchant name.
-    /// Never throws — returns "Other" for any unrecognized input.
+    /// Returns the DB enum category string for a merchant name.
+    /// Falls back to "misc" (the DB default) if nothing matches.
     /// </summary>
-    public string Categorize(string merchantName)
+    public string Categorize(string? name, string? merchantName = null)
     {
-        if (string.IsNullOrWhiteSpace(merchantName))
-            return "Other";
+        var text = $"{name} {merchantName}".Trim();
+        if (string.IsNullOrWhiteSpace(text)) return "misc";
 
         foreach (var (pattern, category) in Rules)
         {
-            if (pattern.IsMatch(merchantName))
-                return category;
+            if (pattern.IsMatch(text)) return category;
         }
 
-        return "Other";
+        return "misc";
     }
 }

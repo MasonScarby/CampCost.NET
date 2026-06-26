@@ -2,16 +2,19 @@ namespace CampCost.Core.Entities;
 
 /// <summary>
 /// Maps to the `trips` table in Supabase.
-/// A Trip is a dated camping event. Expenses within its date range (+ buffer) are linked here.
+/// start_date and end_date are nullable (user may not have set dates yet).
+/// status: 'planning' | 'active' | 'completed' — we only sync against planning/active.
 /// </summary>
 public class Trip
 {
     public Guid Id { get; set; }
     public string UserId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
-    public decimal? BudgetAmount { get; set; }
+    public string? Destination { get; set; }
+    public DateOnly? StartDate { get; set; }   // nullable — user may not have set dates
+    public DateOnly? EndDate { get; set; }
+    public decimal TotalBudget { get; set; }
+    public string Status { get; set; } = "planning";
     public DateTime CreatedAt { get; set; }
 
     // Navigation

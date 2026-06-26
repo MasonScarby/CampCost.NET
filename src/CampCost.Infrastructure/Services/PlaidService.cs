@@ -1,8 +1,8 @@
 using CampCost.Core.Interfaces;
 using Going.Plaid;
 using Going.Plaid.Entity;
-using Going.Plaid.Link;
 using Going.Plaid.Item;
+using Going.Plaid.Link;
 using Going.Plaid.Transactions;
 using Microsoft.Extensions.Configuration;
 
@@ -41,20 +41,21 @@ public class PlaidService : IPlaidService
     }
 
     public async Task<IReadOnlyList<PlaidTransaction>> GetTransactionsAsync(
-        string accessToken, DateTime startDate, DateTime endDate)
+        string accessToken, DateOnly startDate, DateOnly endDate)
     {
         var response = await _client.TransactionsGetAsync(new TransactionsGetRequest
         {
             AccessToken = accessToken,
-            StartDate = DateOnly.FromDateTime(startDate),
-            EndDate = DateOnly.FromDateTime(endDate)
+            StartDate = startDate,
+            EndDate = endDate
         });
 
         return response.Transactions.Select(t => new PlaidTransaction(
             t.TransactionId ?? Guid.NewGuid().ToString(),
-            t.MerchantName ?? t.PersonalFinanceCategory?.Primary ?? "Unknown",
-            (decimal)t.Amount,
-            t.Date.HasValue ? t.Date.Value.ToDateTime(TimeOnly.MinValue) : DateTime.UtcNow
+            t.OriginalDescription ?? t.MerchantName ?? "",
+            t.MerchantName,
+            t.Amount ?? 0m,
+            t.Date ?? startDate
         )).ToList();
     }
 }
