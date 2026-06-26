@@ -25,7 +25,7 @@ public class TransactionSyncService : ITransactionSyncService
         _matcher = matcher;
     }
 
-    public async Task<SyncResult> SyncForUserAsync(string userId)
+    public async Task<SyncResult> SyncForUserAsync(Guid userId)
     {
         var connections = await _db.PlaidConnections
             .Where(c => c.UserId == userId)

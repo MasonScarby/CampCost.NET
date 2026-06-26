@@ -21,10 +21,10 @@ public class TripController : ControllerBase
         _budget = budget;
     }
 
-    private string UserId =>
+    private Guid UserId => Guid.Parse(
         User.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? User.FindFirstValue("sub")
-        ?? throw new UnauthorizedAccessException("No user ID in token");
+        ?? throw new UnauthorizedAccessException("No user ID in token"));
 
     // GET /api/trips
     // Returns all planning/active trips for the current user, ordered by start date

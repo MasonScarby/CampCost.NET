@@ -7,7 +7,7 @@ namespace CampCost.Core.Entities;
 public class PlaidConnection
 {
     public Guid Id { get; set; }
-    public string UserId { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
     public string AccessToken { get; set; } = string.Empty;
     public string ItemId { get; set; } = string.Empty;
     public string InstitutionName { get; set; } = string.Empty;

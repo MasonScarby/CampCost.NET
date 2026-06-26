@@ -8,7 +8,7 @@ namespace CampCost.Core.Entities;
 public class Trip
 {
     public Guid Id { get; set; }
-    public string UserId { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Destination { get; set; }
     public DateOnly? StartDate { get; set; }   // nullable — user may not have set dates

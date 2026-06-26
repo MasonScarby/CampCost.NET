@@ -10,7 +10,7 @@ public class Expense
 {
     public Guid Id { get; set; }
     public Guid TripId { get; set; }           // NOT NULL in DB — skip tx if no trip match
-    public string UserId { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
     public string? PlaidTransactionId { get; set; } // UNIQUE — dedup key
     public string? MerchantName { get; set; }
     public decimal Amount { get; set; }

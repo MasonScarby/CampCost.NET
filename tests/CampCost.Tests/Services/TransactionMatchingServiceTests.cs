@@ -14,7 +14,7 @@ public class TransactionMatchingServiceTests
         Name = name,
         StartDate = start,
         EndDate = end,
-        UserId = "user1"
+        UserId = Guid.NewGuid()
     };
 
     [Fact]

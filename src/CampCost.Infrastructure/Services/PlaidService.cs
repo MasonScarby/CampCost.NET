@@ -50,7 +50,7 @@ public class PlaidService : IPlaidService
             EndDate = endDate
         });
 
-        return response.Transactions.Select(t => new PlaidTransaction(
+        return (response.Transactions ?? new List<Going.Plaid.Entity.Transaction>()).Select(t => new PlaidTransaction(
             t.TransactionId ?? Guid.NewGuid().ToString(),
             t.OriginalDescription ?? t.MerchantName ?? "",
             t.MerchantName,

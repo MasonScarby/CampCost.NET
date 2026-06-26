@@ -47,7 +47,12 @@ public class CampCostDbContext : DbContext
             e.Property(x => x.PlaidTransactionId).HasColumnName("plaid_transaction_id");
             e.Property(x => x.MerchantName).HasColumnName("merchant_name");
             e.Property(x => x.Amount).HasColumnName("amount");
-            e.Property(x => x.Category).HasColumnName("category");
+            e.Property(x => x.Category)
+             .HasColumnName("category")
+             .HasColumnType("expense_category")
+             .HasConversion(
+                 v => Enum.Parse<ExpenseCategoryEnum>(v),
+                 v => v.ToString());
             e.Property(x => x.ExpenseDate).HasColumnName("expense_date");
             e.Property(x => x.Source).HasColumnName("source");
             e.Property(x => x.Reviewed).HasColumnName("reviewed");
@@ -80,7 +85,12 @@ public class CampCostDbContext : DbContext
             e.ToTable("budget_categories");
             e.Property(b => b.Id).HasColumnName("id");
             e.Property(b => b.TripId).HasColumnName("trip_id");
-            e.Property(b => b.Category).HasColumnName("category");
+            e.Property(b => b.Category)
+             .HasColumnName("category")
+             .HasColumnType("expense_category")
+             .HasConversion(
+                 v => Enum.Parse<ExpenseCategoryEnum>(v),
+                 v => v.ToString());
             e.Property(b => b.PlannedAmount).HasColumnName("planned_amount");
             e.Property(b => b.CreatedAt).HasColumnName("created_at");
         });

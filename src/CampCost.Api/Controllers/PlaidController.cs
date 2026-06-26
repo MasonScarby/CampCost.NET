@@ -25,17 +25,17 @@ public class PlaidController : ControllerBase
         _db = db;
     }
 
-    private string UserId =>
+    private Guid UserId => Guid.Parse(
         User.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? User.FindFirstValue("sub")
-        ?? throw new UnauthorizedAccessException("No user ID in token");
+        ?? throw new UnauthorizedAccessException("No user ID in token"));
 
     // POST /api/plaid/link-token
     // Creates a Plaid Link token so the frontend can open the bank-connection UI
     [HttpPost("link-token")]
     public async Task<IActionResult> CreateLinkToken()
     {
-        var token = await _plaid.CreateLinkTokenAsync(UserId);
+        var token = await _plaid.CreateLinkTokenAsync(UserId.ToString());
         return Ok(new { link_token = token });
     }
 

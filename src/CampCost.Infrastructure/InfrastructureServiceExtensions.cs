@@ -6,6 +6,7 @@ using Going.Plaid;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace CampCost.Infrastructure;
 
@@ -18,9 +19,16 @@ public static class InfrastructureServiceExtensions
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services, IConfiguration config)
     {
-        // Database
+        // Database — use NpgsqlDataSourceBuilder so we can register the expense_category
+        // PostgreSQL enum. Without this, Npgsql sends 'text' and Postgres rejects it
+        // with "column is of type expense_category but expression is of type text".
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(
+            config.GetConnectionString("DefaultConnection"));
+        dataSourceBuilder.MapEnum<ExpenseCategoryEnum>("expense_category");
+        var dataSource = dataSourceBuilder.Build();
+
         services.AddDbContext<CampCostDbContext>(options =>
-            options.UseNpgsql(config.GetConnectionString("DefaultConnection")));
+            options.UseNpgsql(dataSource));
 
         // Plaid client — uses Going.Plaid's built-in DI extension
         // Reads ClientId, Secret, Environment from config section "Plaid"

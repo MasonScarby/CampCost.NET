@@ -7,7 +7,7 @@ namespace CampCost.Core.Entities;
 public class Subscription
 {
     public Guid Id { get; set; }
-    public string UserId { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
     public string Plan { get; set; } = "free";
     public string Status { get; set; } = "active";
     public DateTime CreatedAt { get; set; }

@@ -12,7 +12,7 @@ public class BudgetCalculationServiceTests
     {
         Id = Guid.NewGuid(),
         Name = "Test Trip",
-        UserId = "user1",
+        UserId = Guid.NewGuid(),
         TotalBudget = totalBudget,
         StartDate = startDate,
         Status = "active"
@@ -23,7 +23,7 @@ public class BudgetCalculationServiceTests
         Id = Guid.NewGuid(),
         Amount = amount,
         Category = category,
-        UserId = "user1",
+        UserId = Guid.NewGuid(),
         ExpenseDate = DateOnly.FromDateTime(DateTime.UtcNow)
     };
 

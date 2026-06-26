@@ -7,16 +7,23 @@ namespace CampCost.Core.Interfaces;
 public interface ITransactionSyncService
 {
     /// <summary>Sync all Plaid connections for a specific user.</summary>
-    Task<SyncResult> SyncForUserAsync(string userId);
+    Task<SyncResult> SyncForUserAsync(Guid userId);
 
     /// <summary>Sync all Plaid connections across all users (used by webhook).</summary>
     Task<SyncResult> SyncAllAsync();
 }
 
-/// <summary>Summary of what happened during a sync run.</summary>
+/// <summary>
+/// Summary of what happened during a sync run.
+/// `synced` matches the original Node backend response shape: number of new expenses inserted.
+/// </summary>
 public record SyncResult(
     int ConnectionsProcessed,
     int TransactionsFetched,
     int ExpensesUpserted,
     int ExpensesSkipped
-);
+)
+{
+    /// <summary>Alias for ExpensesUpserted — matches original { synced: N } response the frontend reads.</summary>
+    public int synced => ExpensesUpserted;
+};

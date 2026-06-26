@@ -2,6 +2,7 @@ using CampCost.Api.Middleware;
 using CampCost.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,7 +31,38 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// --- Swagger with JWT Bearer support ---
+// Click "Authorize" in Swagger UI, paste your Supabase access_token to test protected endpoints.
+// Get it from the browser console: (await supabase.auth.getSession()).data.session.access_token
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name        = "Authorization",
+        Type        = SecuritySchemeType.Http,
+        Scheme      = "bearer",
+        BearerFormat = "JWT",
+        In          = ParameterLocation.Header,
+        Description = "Paste your Supabase JWT here.\n\n" +
+                      "Get it from the browser console:\n" +
+                      "(await supabase.auth.getSession()).data.session.access_token"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id   = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
