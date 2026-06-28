@@ -1,5 +1,5 @@
 # Stage 1: build
-FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
 COPY CampCost.sln .
@@ -14,7 +14,7 @@ COPY . .
 RUN dotnet publish src/CampCost.Api/CampCost.Api.csproj -c Release -o /publish --no-restore
 
 # Stage 2: runtime (smaller image)
-FROM mcr.microsoft.com/dotnet/aspnet:7.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 COPY --from=build /publish .
 

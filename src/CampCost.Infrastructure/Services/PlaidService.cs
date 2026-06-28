@@ -13,10 +13,13 @@ public class PlaidService : IPlaidService
     private readonly PlaidClient _client;
     private readonly string _webhookUrl;
 
+    private readonly string _redirectUri;
+
     public PlaidService(PlaidClient client, IConfiguration config)
     {
         _client = client;
         _webhookUrl = config["Plaid:WebhookUrl"] ?? "";
+        _redirectUri = config["Plaid:RedirectUri"] ?? "";
     }
 
     public async Task<string> CreateLinkTokenAsync(string userId)
@@ -28,7 +31,7 @@ public class PlaidService : IPlaidService
             Products = new List<Products> { Products.Transactions },
             CountryCodes = new List<CountryCode> { CountryCode.Us },
             Language = Language.English,
-            Webhook = _webhookUrl
+            Webhook = string.IsNullOrEmpty(_webhookUrl) ? null : _webhookUrl
         });
         return response.LinkToken;
     }
