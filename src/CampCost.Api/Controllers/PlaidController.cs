@@ -45,6 +45,9 @@ public class PlaidController : ControllerBase
     [HttpPost("exchange-token")]
     public async Task<IActionResult> ExchangeToken([FromBody] ExchangeRequest req)
     {
+        if (string.IsNullOrWhiteSpace(req.PublicToken))
+            return BadRequest(new { error = "public_token is missing from request body" });
+
         var (accessToken, itemId) = await _plaid.ExchangePublicTokenAsync(req.PublicToken);
 
         var existing = await _db.PlaidConnections
@@ -109,7 +112,10 @@ public class PlaidController : ControllerBase
     }
 }
 
-public record ExchangeRequest(string PublicToken, string? InstitutionName);
+public record ExchangeRequest(
+    [property: JsonPropertyName("public_token")] string PublicToken,
+    [property: JsonPropertyName("institution_name")] string? InstitutionName
+);
 
 public record WebhookPayload(
     [property: JsonPropertyName("webhook_type")] string? WebhookType,
